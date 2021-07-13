@@ -1,7 +1,7 @@
 ## benchmarking using pgbench
 
 ### install pgbench
-The source code of pgbench is placed in the directory `contrib/pgbench`, simply by runing `make && make install` to get pgbench installed.
+The source code of pgbench is placed in the directory `contrib/pgbench`, simply by running `make && make install` to get pgbench installed.
 
 ### init
 * First of all, a database (ie: pgbench) is required to run pgbench:
@@ -95,3 +95,7 @@ statement latencies in milliseconds:
          0.327  INSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (:tid, :bid, :aid, :delta, CURRENT_TIMESTAMP);
          0.481  END;
 ```
+
+___
+
+Copyright © Alibaba Group, Inc.

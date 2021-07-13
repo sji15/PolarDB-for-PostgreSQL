@@ -9,7 +9,7 @@ echo "             with assertion enabled, and then build"
 echo "   debug:    configure the build with debug options and then"
 echo "             build."
 echo "   repeat:   skip configure, just build and install"
-echo "" 
+echo ""
 
 set -e
 pushd "$( dirname "${BASH_SOURCE[0]}" )"
@@ -46,6 +46,7 @@ elif [[ "$BLD_OPT" == "debug" ]]; then
     CMD+=(--enable-cassert)
     CMD+=(--with-python)
     CMD+=(--enable-debug)
+#    CMD+=(--enable-tap-tests)
 elif [[ "$BLD_OPT" != "repeat" ]]; then
     echo "Invalid Parameter! Usage: $0 [deploy|verify|debug|repeat]"
     popd
@@ -58,7 +59,28 @@ if [[ "$BLD_OPT" != "repeat" ]]; then
     ./configure --prefix=$PG_INSTALL ${CMD[@]}
 fi
 
-make -sj 16
+# build polardb consensus dynamic library
+cd $CODEHOME/src/backend/polar_dma/libconsensus/polar_wrapper
+if [[ "$BLD_OPT" == "debug" ]]; then
+bash ./build.sh -r -t debug
+else
+bash ./build.sh -r -t release
+fi
+cd $CODEHOME
+
+function error_retry {
+    echo "Paxos library build failed, try again!"
+    cd $CODEHOME/src/backend/polar_dma/libconsensus/polar_wrapper
+    if [[ "$BLD_OPT" == "debug" ]]; then
+        bash ./build.sh -r -t debug -c ON
+    else
+        bash ./build.sh -r -t release -c ON
+    fi
+    cd $CODEHOME
+    make -sj 16
+}
+
+make -sj 16 || error_retry "build retry!"
 make install
 
 # extensions

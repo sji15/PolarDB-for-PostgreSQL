@@ -1,10 +1,18 @@
-![PolarDB Banner](polardb.png)
+![PolarDB Banner](https://github.com/alibaba/PolarDB-for-PostgreSQL/blob/master/polardb.png)
 
 ## What is PolarDB for PostgreSQL?
 
-PolarDB for PostgreSQL (PolarDB for short) is an open source database system based on PostgreSQL. It extends PostgreSQL to become a share-nothing distributed database, which supports **global data consistency** and **ACID across database nodes**, **distributed SQL processing**, and **data redundancy** and **high availability** through Paxos based replication. PolarDB is designed to add values and new features to PostgreSQL in dimensions of high performance, scalability, high availability, and elasticity. At the same time, PolarDB remains SQL compatibility to single-node PostgreSQL with best effort.
+PolarDB for PostgreSQL (PolarDB for short) is an open-source database system based on PostgreSQL. It extends PostgreSQL to become a share-nothing distributed database, which supports **global data consistency** and **ACID across database nodes**, **distributed SQL processing**, and **data redundancy** and **high availability** through Paxos based replication. PolarDB is designed to add values and new features to PostgreSQL in dimensions of high performance, scalability, high availability, and elasticity. At the same time, PolarDB remains SQL compatibility to standalone PostgreSQL with the best effort.
 
-PolarDB will evolve and offer its functions and features in two major parts: an extension and a patch to Postgres. The extension part includes components implemented outside PostgreSQL kernel, such as distributed transaction management, global or distributed time service, distributed SQL processing, additional metadata and internal functions, and tools to manage database clusters and conduct fault tolerance or recovery. Having most of its functions in a Postgres extension, PolarDB targets **easy upgrading**, **easy migration**, and **fast adoption**. The patch part includes the changes necessary to the kernel, such as distributed MVCC for different isolation levels. We expect functions and codes in the patch part is limited. As a result, PolarDB can be easily upgraded with newer PostgreSQL versions and maintain full compatible to PostgreSQL.
+PolarDB will evolve and offer its functions and features in two major parts: an extension and a patch to PostgreSQL. The extension part includes components implemented outside the PostgreSQL kernel, such as distributed transaction management, global or distributed time service, distributed SQL processing, additional metadata, internal functions, and tools to manage database clusters and conduct fault tolerance or recovery. Having most of its functions in a PostgreSQL extension, PolarDB targets **easy upgrading**, **easy migration**, and **fast adoption**. The patch part includes the changes necessary to the kernel, such as distributed MVCC for different isolation levels. We expect functions and codes in the patch part is limited. As a result, PolarDB can be easily upgraded with newer PostgreSQL versions and maintained full compatibility with PostgreSQL.
+
+- [Quick start with PolarDB](#quick-start-with-polardb)
+- [Architecture & Roadmap](#architecture--roadmap)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Licensing](#licensing)
+- [Acknowledgements](#acknowledgements)
+- [Communications](#communications)
 
 ## Quick start with PolarDB
 
@@ -13,23 +21,70 @@ Three approaches are offered to quickly try out PolarDB: Alibaba Cloud service, 
 ### Alibaba Cloud Service
 TBD
 
-### Deployment Using Docker Images
-TBD
+### Deployment Using Docker Image
+This section describes how to create a PolarDB-for-Postgresql image, and how to use the image for a quick start.
 
-### One-Key Deployment
-onekey.sh can be used to build, configure, deploy, start, init a Paxos HA environment by single command.
-for more detail please reference under "Deployment from Source Code" part.
+* build a PolarDB-for-Postgresql image.
 
-* prepare work
-setup environment variables(LD_LIBRARY_PATH and PATH) and install dependency packages
+```bash
+docker build -t polardb-for-postgresql -f ./docker/Dockerfile .
+```
 
-* call onekey.sh script
+* run PolarDB-for-Postgresql image on port 10001.
+
+```bash
+docker run --name polardb -p 10001:10001 -d polardb-for-postgresql:latest
+```
+
+* access PolarDB-for-Postgresql with local psql.
+
+```bash
+psql -d postgres -U postgres -h localhost -p 10001
+```
+
+* if psql is not installed locally, you can login the container to use it.
+
+```bash
+docker exec -it polardb /bin/bash
+```
+
+### Previous Preparation
+
+* download source code from https://github.com/alibaba/PolarDB-for-PostgreSQL
+
+* install dependent packages (use Centos as an example)
+
+```bash
+sudo yum install bison flex libzstd-devel libzstd zstd cmake openssl-devel protobuf-devel readline-devel libxml2-devel libxslt-devel zlib-devel bzip2-devel lz4-devel snappy-devel python-devel
+```
+* set up authorized key for fast access
+
+Call ssh-copy-id installs an authorized key. Its purpose is help pgxc_ctl to provision access without requiring a password for each login.
+
+```bash
+ssh-copy-id username@IP
+```
+
+* set up environment variables
+
+```bash
+vi ~/.bashrc
+export PATH="$HOME/polardb/polardbhome/bin:$PATH"
+export LD_LIBRARY_PATH="$HOME/polardb/polardbhome/lib:$LD_LIBRARY_PATH"
+source ~/.bashrc
+```
+
+### Fast Deployment(One-Key for all)
+This script uses default configuration to compile PolarDB, to deploy binary, and to start a cluster of three nodes, including a leader and two followers.
+before call this script, please check "environment variables, dependent packages, authorized key" at "Previous Preparation" first.
+
+* run onekey.sh script
 
 ```bash
 ./onekey.sh all
 ```
 
-* check process running(master, slave, learner), and replica roles and status:
+* check running processes (1 leader, 2 follower), their replica roles and status
 
 ```bash
 ps -ef|grep polardb
@@ -40,40 +95,14 @@ psql -p 10001 -d postgres -c "select * from polar_dma_cluster_status;"
 
 ### Deployment from Source Code
 
-We extend a tool named as pgxc_ctl from PG-XC/PG-XL open source project to support cluster management, such as configuration generation, configuration modification, cluster initialization, starting/stopping nodes, and switchover, etc. Its detail usage can be found [deployment](/doc/polardb/deployment.md).
+We extend a tool named pgxc_ctl from PG-XC/PG-XL open-source project to support cluster management, such as configuration generation, configuration modification, cluster initialization, starting/stopping nodes, and switchover. Its detail usage can be found [deployment](/doc/polardb/deployment.md).
 
-* download source code
-* install dependency packages (use Centos as an example)
-
-```bash
-sudo yum install libzstd-devel libzstd zstd cmake openssl-devel protobuf-devel readline-devel libxml2-devel libxslt-devel zlib-devel bzip2-devel lz4-devel snappy-devel
-```
 * build and install binary
 
-```bash
-./configure --prefix=/home/postgres/polardb/polardbhome
-make
-make install
-cd contrib
-make
-```
-
-or you can just call build script to build.
+You can just call build script to build. If you get errors, please reference [deployment](/doc/polardb/deployment.md) for detail reasons.
 
 ```bash
 ./build.sh
-```
-
-* setup environment variables
-
-```bash
-vi ~/.bashrc
-export PGUSER=postgres
-export PGHOME=/home/postgres/polardb/polardbhome
-
-export LD_LIBRARY_PATH=$PGHOME/lib
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/lib:/usr/lib:/usr/local/lib
-export PATH=$PGHOME/bin:$PATH
 ```
 
 * generate default configure file
@@ -96,7 +125,7 @@ pgxc_ctl -c $HOME/polardb/polardb_paxos.conf init all
 pgxc_ctl -c $HOME/polardb/polardb_paxos.conf monitor all
 ```
 
-* install dependency packages for cluster management
+* install dependent packages for cluster management
 
 ```bash
 pgxc_ctl -c $HOME/polardb/polardb_paxos.conf deploy cm
@@ -130,7 +159,7 @@ pgxc_ctl -c $HOME/polardb/polardb_paxos.conf failover datanode datanode_1
 pgxc_ctl -c $HOME/polardb/polardb_paxos.conf healthcheck all
 ```
 
-* example for other command
+* examples of other command
 
 ```bash
 pgxc_ctl -c $HOME/polardb/polardb_paxos.conf kill all
@@ -149,34 +178,36 @@ psql -p 10001 -d test -c "select version();"
 
 reference [deployment](/doc/polardb/deployment.md) for detail instructions.
 
-Regress and other test details can be found [here](/doc/polardb/regress.md). Some benchmarking example is [here](/doc/polardb/benchmark.md)
+Regress and other test details can be found [here](/doc/polardb/regress.md). Some benchmarking example is [here](/doc/polardb/benchmark.md).
 
 ## Architecture & Roadmap
 
 PolarDB uses a share-nothing architecture. Each node stores data and also executes queries, and they coordinate with each other through message passing. The architecture allows the database to be scaled by adding more nodes to the cluster.
 
-PolarDB slices a table into shards by hashing its primary key. The number of shards is configurable. Shards are stored in PolarDB nodes. When a query accesses shards in multiple nodes, a distributed transaction and a transaction coordinator are used to maintain ACID across nodes.
+PolarDB slices a table into shards by hashing its primary key. The number of shards is configurable. Shards are stored in PolarDB nodes. When a query accesses shards in many nodes, a distributed transaction and a transaction coordinator are used to maintain ACID across nodes.
 
-Each shard is replicated to three nodes with each replica stored on different node. In order to save costs, we can deploy two of the replicas to store complete data. The third replica only stores write ahead log (WAL), which participates in the election but cannot be chosen as the leader.
+Each shard is replicated to three nodes with each replica stored on a different node. In order to save costs, we can deploy two of the replicas to store complete data. The third replica only stores a write-ahead log (WAL), which participates in the election but cannot be chosen as the leader.
 
 See [architecture design](/doc/polardb/arch.md) for more information
 
 ## Documentation
 
-* [architecture design](/doc/polardb/arch.md)
-* [roadmap](/doc/polardb/roadmap.md)
-* Features and their design in PolarDB for PG Version 1.0
+* [Architecture design](/doc/polardb/arch.md)
+* [Roadmap](/doc/polardb/roadmap.md)
+* Features and their design in PolarDB for PostgreSQL Version 1.0
   * [Paxos replication](/doc/polardb/ha_paxos.md)
-  * [cluster management](/doc/polardb/cluster.md)
-  * [Parallel Redo](/doc/polardb/parallel_redo.md)
+  * [Cluster management](/doc/polardb/deployment.md)
   * [Timestamp based MVCC](/doc/polardb/cts.md)
+  * [Parallel Redo](/doc/polardb/parallel_redo.md)
+  * [Remote Recovery](/doc/polardb/no_fpw.md)
 
 
 ## Contributing
 
-PolarDB is built on and of open source, and extends open source PostgreSQL. Your contributions are welcome. How to start developing PolarDB is summarized in [coding style](/doc/polardb/style.md). It also introduces our coding style and quality guidelines.
+PolarDB is built on open-source projects and extends open-source PostgreSQL. Your contribution is welcome and appreciated. Please refer [contributing](/doc/polardb/contributing.md) for how to start coding and submit a PR.
 
 ## Licensing
+
 PolarDB code is released under the Apache Version 2.0 License and the Licenses with PostgreSQL code.
 
 The relevant licenses can be found in the comments at the top of each file.
@@ -185,7 +216,17 @@ Reference [License](LICENSE) and [NOTICE](NOTICE) for details.
 
 ## Acknowledgements
 
-Some codes and design ideas were from other open source projects, such as PG-XC/XL(pgxc_ctl), TBase (timestamp based vacuum and MVCC), and CitusDB (pg_cron). Thanks for their contributions.
+Some codes and design ideas were from other open-source projects, such as PG-XC/XL(pgxc_ctl), TBase (part of timestamp-based vacuum and MVCC), and Citus (pg_cron). Thanks for their contributions.
+
+
+## Communications
+
+* PolarDB for PostgreSQL at Slack
+https://app.slack.com/client/T023NM10KGE/C023VEMKS02
+
+* PolarDB Technial Promotion Group at DingDing
+![PolarDB Technial Promotion Group](https://github.com/alibaba/PolarDB-for-PostgreSQL/blob/master/polardb_group.png)
+
 ___
 
 Copyright © Alibaba Group, Inc.
